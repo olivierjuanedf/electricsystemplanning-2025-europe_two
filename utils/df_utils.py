@@ -1,3 +1,4 @@
+import logging
 import warnings
 
 import numpy as np
@@ -5,6 +6,7 @@ import pandas as pd
 from typing import Dict, List
 from datetime import datetime
 
+from common.long_term_uc_io import ResampleMethods
 from utils.basic_utils import get_key_of_val
 
 
@@ -18,6 +20,19 @@ def selec_in_df_based_on_list(df: pd.DataFrame, selec_col, selec_vals: list, rm_
     if rm_selec_col:
         val = val.drop(columns=[selec_col])
     return val
+
+
+def get_tuples_from_columns(df: pd.DataFrame, columns: list) -> List[tuple]:
+    """
+    Extract a list of tuples from specified columns in a DataFrame
+    """
+    # Validate columns
+    missing_cols = [col for col in columns if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Columns not found in DataFrame: {missing_cols}")
+
+    # Convert subset to list of tuples
+    return [tuple(row) for row in df[columns].to_numpy()]
 
 
 def concatenate_dfs(dfs: List[pd.DataFrame], reset_index: bool = True) -> pd.DataFrame:
@@ -93,6 +108,24 @@ def rename_df_columns(df: pd.DataFrame, old_to_new_cols: dict) -> pd.DataFrame:
     return df
 
 
+def replace_none_values_in_df(df: pd.DataFrame, per_col_repl_values: dict, key_cols: list = None) -> pd.DataFrame:
+    if key_cols is None:
+        key_cols = list(set(df.columns) - set(per_col_repl_values))
+    cols_with_none_vals = {}
+    for col, default_val in per_col_repl_values.items():
+        df_with_na = df[df[col].isna()]
+        if len(df_with_na) > 0:
+            keys_with_none_vals = get_tuples_from_columns(df=df_with_na, columns=key_cols)
+            cols_with_none_vals[col] = keys_with_none_vals
+            df = df.fillna({col: default_val})
+    if len(cols_with_none_vals) > 0:
+        repl_values_applied = {col: default_val for col, default_val in per_col_repl_values.items()
+                               if col in cols_with_none_vals}
+        logging.warning(f'There were none values in df associated to keys: {cols_with_none_vals}'
+                        f'\n-> replaced by {repl_values_applied}')
+    return df
+
+
 def set_key_columns(col_names: list, tuple_values: List[tuple], n_repeat: int = None) -> pd.DataFrame:
     """
     :param col_names: list of key column names
@@ -106,3 +139,64 @@ def set_key_columns(col_names: list, tuple_values: List[tuple], n_repeat: int = 
     concat_keys = np.concatenate([np.array(elt).reshape(1, n_keys) for elt in tuple_values], axis=0)
     concat_keys = np.repeat(concat_keys, n_repeat, axis=0)
     return pd.DataFrame(data=concat_keys, columns=col_names)
+
+
+def resample_and_distribute(df: pd.DataFrame, date_col: str, value_cols: list, method: str, end_date: datetime = None,
+                            resample_divisor: float = None, fill_na_vals: dict = None, key_cols: list = None,
+                            freq: str = 'h') -> pd.DataFrame:
+    """
+    Resample a DataFrame from daily to a finer frequency (e.g., hourly),
+    distribute numeric values proportionally, and repeat key columns.
+    Params:
+    end_date: of the resampling, to possibly include some time-slots after the last date value in df
+    Returns:
+    -------
+    pd.DataFrame
+        Resampled DataFrame with proportional distribution and reset index.
+    """
+    df.set_index(date_col, inplace=True)
+
+    # Determine the end date for resampling
+    last_date = df.index.max()
+    if end_date is not None:
+        if end_date < last_date:
+            raise ValueError("End date cannot be earlier than the last index date for df reasmpling")
+        last_date = end_date
+
+    full_range = pd.date_range(df.index.min(), last_date, freq=freq)
+
+    if method == ResampleMethods.uniform_distrib:
+        # Resample to target frequency
+        resampled = df.resample(freq).ffill()
+        resampled = resampled.reindex(full_range, method='ffill')
+        # Resample division?
+        if resample_divisor is not None:
+            for col in value_cols:
+                resampled[col] = resampled[col] / resample_divisor
+    elif method == ResampleMethods.all_at_first_ts:
+        resampled = df.reindex(full_range)
+        resampled = resampled.fillna(fill_na_vals)
+
+    # Forward-fill key columns if provided
+    if key_cols:
+        for col in key_cols:
+            resampled[col] = resampled[col].ffill()
+
+    # Reset index so date becomes a column
+    return resampled.reset_index().rename(columns={'index': date_col})
+
+
+if __name__ == '__main__':
+    data = {
+        'date': pd.date_range('2025-11-10', periods=3, freq='D'),
+        'region': ['Europe', 'Europe', 'Europe'],
+        'value': [240, 480, 720],
+        'value2': [24, 48, 72]
+    }
+    df = pd.DataFrame(data)
+
+    # Apply function
+    hourly_df = resample_and_distribute(df, date_col='date', value_cols=['value', 'value2'], key_cols=['region'],
+                                        freq='h', resample_divisor=24, end_date=datetime(2025,11,12,23),
+                                        method=ResampleMethods.all_at_first_ts, fill_na_vals={'value': 0, 'value2': 1000})
+    bob = 1
