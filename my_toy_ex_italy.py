@@ -77,7 +77,6 @@ climatic_year = 1989
 from datetime import datetime, timedelta
 uc_period_start = datetime(year=1900, month=1, day=1)
 uc_period_end = uc_period_start + timedelta(days=14)
-# TODO: used?
 from common.constants.prod_types import ProdTypeNames
 agg_prod_types_selec = [ProdTypeNames.wind_onshore, ProdTypeNames.wind_offshore, ProdTypeNames.solar_pv]
 
@@ -109,7 +108,6 @@ eraa_dataset = Dataset(agg_prod_types_with_cf_data=eraa_data_descr.agg_prod_type
 """
 
 # (III.1) Get data for Italy... just for test -> data used when writing PyPSA model will be re-obtained afterwards
-# TODO: "just for test"? Suppress these lines of code then?
 eraa_dataset.get_countries_data(uc_run_params=uc_run_params,
                                 aggreg_prod_types_def=eraa_data_descr.aggreg_prod_types_def)
 eraa_dataset.complete_data()
@@ -181,7 +179,6 @@ pypsa_model.add_gps_coordinates(countries_gps_coords=coordinates)
 # (IV.2.ii) [VERY KEY - AND TRICKY :) - STAGE] Generators definition, beginning with only simple parameters.
 # Almost 'real Italy'... excepting hydraulic storage and Demand-Side Response capacity 
 # (we will come back on this later)
-# TODO: simplify
 # Thanks to Tim WALTER - student of a past similar course, detailed parameter values associated
 # to different fuel sources are available in following dictionary. You can use it or search/define 
 # fictive alternative values instead -> plenty infos on Internet on this... sometimes of 'varying' quality! 
@@ -254,7 +251,7 @@ pypsa_opt_resol_status = OPTIM_RESOL_STATUS.optimal
 # (V1.2) If optimal resolution status, save output data and plot associated figures
 if optim_status == pypsa_opt_resol_status:
     objective_value = pypsa_model.get_opt_value(pypsa_resol_status=pypsa_opt_resol_status)
-    print(f'Total cost at optimum: {objective_value:.2f}')  # TODO: unit?
+    print(f'Total cost at optimum: {objective_value:.2f}')  # Q: unit?
     # Look at the following methods if you want to see how to access optimal decisions in PyPSA framework
     pypsa_model.get_prod_var_opt()
     pypsa_model.get_storage_vars_opt()
