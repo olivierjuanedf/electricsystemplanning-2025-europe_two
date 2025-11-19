@@ -76,7 +76,7 @@ climatic_year = 1989
 # on a fictive calendar - made of 52 full weeks
 from datetime import datetime, timedelta
 uc_period_start = datetime(year=1900, month=1, day=1)
-uc_period_end = uc_period_start + timedelta(days=14)
+uc_period_end = datetime(year=1900, month=12, day=31) # uc_period_start + timedelta(days=14)
 # TODO: used?
 from common.constants.prod_types import ProdTypeNames
 agg_prod_types_selec = [ProdTypeNames.wind_onshore, ProdTypeNames.wind_offshore, ProdTypeNames.solar_pv]

@@ -203,7 +203,7 @@
       "committable": "true"
     },
     "others_fatal": {
-      "carrier": "other_renew",
+      "carrier": "other_renewables",
       "p_min_pu": 1,
       "p_max_pu": 1,
       "efficiency": 0.4,

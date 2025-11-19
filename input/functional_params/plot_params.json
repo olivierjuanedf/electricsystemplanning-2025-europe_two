@@ -21,7 +21,9 @@
         "solar_pv": "yellow",
         "solar_thermal": "orange",
         "wind_offshore": "magenta",
-        "wind_onshore": "purple"
+        "wind_onshore": "purple",
+        "other_renewables": "cyan",
+        "other_non_renewables": "green"
       },
       "eco2mix": {
         "batteries": null,
@@ -69,6 +71,8 @@
       "wind_offshore",
       "solar_pv",
       "solar_thermal",
+      "other_renewables",
+      "other_non_renewables",
       "others_fatal",
       "hydro_pondage",
       "hydro_run_of_river",
@@ -82,7 +86,8 @@
       "oil",
       "batteries",
       "dsr",
-      "failure"
+      "failure",
+      "ignite"
     ]
   },
   "year": {

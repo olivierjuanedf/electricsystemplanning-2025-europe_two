@@ -35,7 +35,7 @@
     "energy_density_per_ton": 0,
     "cost_per_ton": 0
   },
-  "hydro": {
+  "hydro_reservoir": {
     "co2_emissions": 0,
     "committable": "False",
     "energy_density_per_ton": 0,

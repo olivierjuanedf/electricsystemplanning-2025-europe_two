@@ -59,28 +59,28 @@ def get_generators(country_trigram: str, fuel_sources: Dict[str, FuelSource], wi
             GEN_UNITS_PYPSA_PARAMS.efficiency: 0.4
         },
         {
-            GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_wind-on-shore',
+            GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_wind_onshore',
             GEN_UNITS_PYPSA_PARAMS.carrier: FuelNames.wind,
             GEN_UNITS_PYPSA_PARAMS.nominal_power: 14512,
             GEN_UNITS_PYPSA_PARAMS.max_power_pu: wind_on_shore_cf_data['value'].values,
             GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.wind].primary_cost
         },
         {
-            GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_wind-off-shore',
+            GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_wind_offshore',
             GEN_UNITS_PYPSA_PARAMS.carrier: FuelNames.wind,
             GEN_UNITS_PYPSA_PARAMS.nominal_power: 791,
             GEN_UNITS_PYPSA_PARAMS.max_power_pu: wind_off_shore_cf_data['value'].values,
             GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.wind].primary_cost
         },
         {
-            GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_solar-pv',
+            GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_solar_pv',
             GEN_UNITS_PYPSA_PARAMS.carrier: FuelNames.solar,
             GEN_UNITS_PYPSA_PARAMS.nominal_power: 39954,
             GEN_UNITS_PYPSA_PARAMS.max_power_pu: solar_pv_cf_data['value'].values,
             GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.solar].primary_cost
         },
         {
-            GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_other-renewables',
+            GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_other_renewables',
             GEN_UNITS_PYPSA_PARAMS.carrier: FuelNames.other_renewables,
             GEN_UNITS_PYPSA_PARAMS.nominal_power: 4466,
         },
