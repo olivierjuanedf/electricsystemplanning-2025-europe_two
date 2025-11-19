@@ -115,3 +115,213 @@ def read_and_process_hydro_data(hydro_dt: str, folder: str, rm_week_and_day_cols
             cols_tb_rmed.append(day_col)
         df_hydro.drop(columns=cols_tb_rmed, inplace=True)
     return df_hydro
+
+
+def get_hydro_ror_generation(folder: str, zone: str, climatic_year: int,
+                              period_start: datetime, period_end: datetime) -> Optional[pd.DataFrame]:
+    """
+    Load daily run-of-river hydro generation profile and convert to hourly time series.
+    
+    Args:
+        folder: Path to ERAA hydro data folder
+        zone: Zone name (e.g., 'germany', 'france')
+        climatic_year: Climatic year to use
+        period_start: Start date of simulation
+        period_end: End date of simulation
+    
+    Returns:
+        DataFrame with columns ['date', 'value'] where value is hourly ROR generation in MW
+        Returns None if data not available for the zone
+    """
+    # Load daily ROR data using existing function
+    from common.constants.datatypes import DATATYPE_NAMES
+    df_ror = read_and_process_hydro_data(hydro_dt=DATATYPE_NAMES.hydro_ror, folder=folder, rm_week_and_day_cols=True)
+    
+    if df_ror is None:
+        logging.warning(f'No ROR hydro data available for zone {zone}')
+        return None
+    
+    # Filter by zone and climatic year
+    df_ror = df_ror[df_ror[COLUMN_NAMES.zone] == zone]
+    if COLUMN_NAMES.climatic_year in df_ror.columns:
+        df_ror = df_ror[df_ror[COLUMN_NAMES.climatic_year] == climatic_year]
+    
+    if df_ror.empty:
+        logging.warning(f'No ROR hydro data available for zone {zone}, climatic year {climatic_year}')
+        return None
+    
+    # Filter by date range
+    df_ror = filter_input_data(df=df_ror, date_col=COLUMN_NAMES.date, 
+                               climatic_year_col=COLUMN_NAMES.climatic_year,
+                               period_start=period_start, period_end=period_end, 
+                               climatic_year=climatic_year)
+    
+    # Expand daily values to hourly (replicate each daily value 24 times)
+    hourly_data = []
+    for _, row in df_ror.iterrows():
+        daily_date = row[COLUMN_NAMES.date]
+        daily_value = row['value']
+        for hour in range(24):
+            hourly_date = daily_date + pd.Timedelta(hours=hour)
+            hourly_data.append({'date': hourly_date, 'value': daily_value})
+    
+    df_ror_hourly = pd.DataFrame(hourly_data)
+    return df_ror_hourly
+
+
+def get_hydro_inflows(folder: str, zone: str, climatic_year: int,
+                      period_start: datetime, period_end: datetime) -> dict:
+    """
+    Load weekly hydro inflows and distribute to hourly time series.
+    
+    Args:
+        folder: Path to ERAA hydro data folder
+        zone: Zone name (e.g., 'germany', 'france')
+        climatic_year: Climatic year to use
+        period_start: Start date of simulation
+        period_end: End date of simulation
+    
+    Returns:
+        Dictionary with keys 'reservoir' and 'pump_open', each containing a DataFrame
+        with columns ['date', 'value'] where value is hourly inflow in MWh
+    """
+    # Load weekly inflow data using existing function
+    from common.constants.datatypes import DATATYPE_NAMES
+    df_inflows = read_and_process_hydro_data(hydro_dt=DATATYPE_NAMES.hydro_inflows, folder=folder, rm_week_and_day_cols=False)
+    
+    if df_inflows is None:
+        logging.warning(f'No hydro inflow data available')
+        return {'reservoir': None, 'pump_open': None}
+    
+    # Filter by zone and climatic year
+    df_inflows = df_inflows[df_inflows[COLUMN_NAMES.zone] == zone]
+    if COLUMN_NAMES.climatic_year in df_inflows.columns:
+        df_inflows = df_inflows[df_inflows[COLUMN_NAMES.climatic_year] == climatic_year]
+    
+    if df_inflows.empty:
+        logging.warning(f'No hydro inflow data available for zone {zone}, climatic year {climatic_year}')
+        return {'reservoir': None, 'pump_open': None}
+    
+    # Filter by date range
+    df_inflows = filter_input_data(df=df_inflows, date_col=COLUMN_NAMES.date,
+                                   climatic_year_col=COLUMN_NAMES.climatic_year,
+                                   period_start=period_start, period_end=period_end,
+                                   climatic_year=climatic_year)
+    
+    # Process reservoir inflows
+    reservoir_inflows = []
+    pump_open_inflows = []
+    
+    for _, row in df_inflows.iterrows():
+        week_start = row[COLUMN_NAMES.date]  # Monday of the week
+        reservoir_weekly = row.get('cum_inflow_into_reservoirs', 0)
+        pump_open_weekly = row.get('cum_nat_inflow_into_pump-storage_reservoirs', 0)
+        
+        # Distribute weekly value evenly across 7 days * 24 hours = 168 hours
+        hours_per_week = 168
+        reservoir_hourly = reservoir_weekly / hours_per_week if reservoir_weekly else 0
+        pump_open_hourly = pump_open_weekly / hours_per_week if pump_open_weekly else 0
+        
+        # Create hourly entries for the week
+        for hour_offset in range(hours_per_week):
+            hourly_date = week_start + pd.Timedelta(hours=hour_offset)
+            if period_start <= hourly_date <= period_end + pd.Timedelta(days=1):
+                reservoir_inflows.append({'date': hourly_date, 'value': reservoir_hourly})
+                pump_open_inflows.append({'date': hourly_date, 'value': pump_open_hourly})
+    
+    df_reservoir = pd.DataFrame(reservoir_inflows) if reservoir_inflows else None
+    df_pump_open = pd.DataFrame(pump_open_inflows) if pump_open_inflows else None
+    
+    return {'reservoir': df_reservoir, 'pump_open': df_pump_open}
+
+
+def get_hydro_level_constraints(
+    folder: str,
+    zone: str,
+    climatic_year: int = None,
+    period_start: datetime = None,
+    period_end: datetime = None
+) -> dict:
+    """
+    Load hydro storage level constraints (min/max) from ERAA dataset.
+    
+    Phase 3: Load weekly min/max level constraints for reservoir and pump storage
+    
+    Args:
+        folder: Path to ERAA data folder
+        zone: Zone name (e.g., 'germany')
+        climatic_year: Climatic year (default: None, ignored for level constraints)
+        period_start: Start date of simulation period
+        period_end: End date of simulation period
+    
+    Returns:
+        Dictionary with keys 'reservoir_min', 'reservoir_max', 'pump_open_min', 'pump_open_max',
+        'pump_closed_min', 'pump_closed_max', each containing a DataFrame
+        with columns ['date', 'value'] where value is the level constraint (0-1)
+    """
+    # Load weekly level data using existing function
+    from common.constants.datatypes import DATATYPE_NAMES
+    df_levels_min = read_and_process_hydro_data(hydro_dt=DATATYPE_NAMES.hydro_levels_min, folder=folder, rm_week_and_day_cols=False)
+    df_levels_max = read_and_process_hydro_data(hydro_dt=DATATYPE_NAMES.hydro_levels_max, folder=folder, rm_week_and_day_cols=False)
+    
+    if df_levels_min is None or df_levels_max is None:
+        logging.warning(f'No hydro level constraint data available')
+        return {
+            'reservoir_min': None, 'reservoir_max': None,
+            'pump_open_min': None, 'pump_open_max': None,
+            'pump_closed_min': None, 'pump_closed_max': None
+        }
+    
+    # Filter for the specified zone (df already filtered by zone in read_and_process_hydro_data)
+    
+    # Map week numbers to dates for the specified period
+    if period_start is None or period_end is None:
+        logging.warning('Period start and end are required for level constraints')
+        return {
+            'reservoir_min': None, 'reservoir_max': None,
+            'pump_open_min': None, 'pump_open_max': None,
+            'pump_closed_min': None, 'pump_closed_max': None
+        }
+    
+    # Create a date range for the simulation period
+    date_range = pd.date_range(start=period_start, end=period_end, freq='h')
+    
+    # Get week numbers for each date (ISO week)
+    week_numbers = date_range.isocalendar().week.values
+    
+    # Create dataframes for each storage type and constraint type
+    result = {}
+    
+    for storage_type in ['reservoir', 'pump_open', 'pump_closed']:
+        # Column names in ERAA data
+        if storage_type == 'reservoir':
+            col_suffix = 'reservoirs'
+        elif storage_type == 'pump_open':
+            col_suffix = 'pump-storage_reservoirs_with_natural_inflow'
+        else:  # pump_closed
+            col_suffix = 'pump-storage_reservoirs'
+        
+        for constraint_type, df_source in [('min', df_levels_min), ('max', df_levels_max)]:
+            col_name = f'{constraint_type}_{col_suffix}'
+            
+            if col_name not in df_source.columns:
+                logging.warning(f'Column {col_name} not found in level data')
+                result[f'{storage_type}_{constraint_type}'] = None
+                continue
+            
+            # Create a mapping from week to constraint value
+            week_to_value = df_source.set_index('week')[col_name].to_dict()
+            
+            # Map constraint values to hourly resolution
+            constraint_values = [week_to_value.get(week, 0.0 if constraint_type == 'min' else 1.0) 
+                                for week in week_numbers]
+            
+            # Create dataframe
+            df_constraint = pd.DataFrame({
+                'date': date_range,
+                'value': constraint_values
+            })
+            
+            result[f'{storage_type}_{constraint_type}'] = df_constraint
+    
+    return result

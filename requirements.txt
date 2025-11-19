@@ -9,3 +9,4 @@ pypsa==0.35.1
 cartopy
 Requests
 gurobipy
+ipywidgets

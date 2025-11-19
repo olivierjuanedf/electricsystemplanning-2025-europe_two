@@ -8,7 +8,10 @@ class GenUnitsPypsaParams:
     capa_factors: str = 'p_max_pu'
     committable: str = 'committable'
     co2_emissions: str = 'co2_emissions'  # TODO: check that aligned on PyPSA generators attribute names
+    cyclic_state_of_charge: str = 'cyclic_state_of_charge'
     efficiency: str = 'efficiency'
+    efficiency_dispatch: str = 'efficiency_dispatch'
+    efficiency_store: str = 'efficiency_store'
     energy_capa: str = None
     inflow: str = 'inflow'
     marginal_cost: str = 'marginal_cost'

@@ -35,6 +35,8 @@ class GenerationUnitData:
     p_min_pu: Union[float, np.ndarray] = None
     p_max_pu: Union[float, np.ndarray] = None
     efficiency: float = None
+    efficiency_store: float = None
+    efficiency_dispatch: float = None
     marginal_cost: float = None
     committable: bool = False
     max_hours: float = None
@@ -384,9 +386,20 @@ class PypsaModel:
             warnings.simplefilter("ignore")
             # N.B. p_nom_opt is the optimized capacity (that can be also a variable in PyPSA but here...
             # not optimized - only UC problem -> values plotted correspond to the ones that can be found in input data)
-            # all but failure asset capacity will be used in plot
-            self.network.generators.p_nom_opt.drop(f'{country_trigram}_failure').div(1e3).plot.bar(ylabel='GW',
-                                                                                                   figsize=(8, 3))
+            
+            # Get generator capacities (all but failure asset)
+            gen_capas = self.network.generators.p_nom_opt.drop(f'{country_trigram}_failure')
+            
+            # Get storage unit capacities
+            country_storage_units = [su for su in self.network.storage_units.index 
+                                    if su.startswith(country_trigram)]
+            storage_capas = self.network.storage_units.loc[country_storage_units, 'p_nom']
+            
+            # Combine both
+            all_capas = pd.concat([gen_capas, storage_capas])
+            
+            # Plot
+            all_capas.div(1e3).plot.bar(ylabel='GW', figsize=(8, 3))
             plt.tight_layout()
             plt.savefig(get_output_figure(fig_name=FigNamesPrefix.capacity, country=country, year=year,
                                           toy_model_output=toy_model_output))
@@ -402,20 +415,51 @@ class PypsaModel:
             warnings.simplefilter("ignore")
             # sort values to get only prod of given country
             country_trigram = set_country_trigram(country=country)
+            
+            # Get generator production
             country_prod_cols = [prod_unit_name for prod_unit_name in list(self.prod_var_opt)
                                  if prod_unit_name.startswith(country_trigram)]
             current_prod_var_opt = self.prod_var_opt[country_prod_cols]
+            
+            # Get storage discharge (production from storage)
+            country_storage_cols = [storage_unit_name for storage_unit_name in list(self.storage_prod_var_opt)
+                                    if storage_unit_name.startswith(country_trigram)]
+            storage_discharge = self.storage_prod_var_opt[country_storage_cols]
+            
+            # Only include positive values (discharge), set negative values to 0
+            # This ensures we only show storage acting as a supply source
+            storage_discharge = storage_discharge.clip(lower=0)
+            
+            # Combine generator production and storage discharge
+            current_prod_var_opt = pd.concat([current_prod_var_opt, storage_discharge], axis=1)
+            
             # suppress trigram from prod unit names to simplify legend in figures
-            new_prod_cols = {col: col[4:] for col in country_prod_cols}
+            all_cols = list(current_prod_var_opt.columns)
+            new_prod_cols = {col: col[4:] for col in all_cols}
             current_prod_var_opt = rename_df_columns(df=current_prod_var_opt, old_to_new_cols=new_prod_cols)
+            
+            # Map storage column names to match plot parameter names
+            # Note: PyPSA storage_units_t.p columns are just the unit names (e.g., 'battery', not 'battery_prod')
+            storage_name_mapping = {
+                'battery': 'batteries',
+                'pump_closed': 'hydro_pump_storage_closed_loop',
+                'pump_open': 'hydro_pump_storage_open_loop',
+                'reservoir': 'hydro_reservoir',
+                'ror': 'hydro_run_of_river'  # ROR is a generator, but include for consistency
+            }
+            current_prod_var_opt = rename_df_columns(df=current_prod_var_opt, old_to_new_cols=storage_name_mapping)
             current_prod_var_opt = set_col_order_for_plot(df=current_prod_var_opt,
                                                           cols_ordered=plot_params_agg_pt.order)
-            current_prod_var_opt.div(1e3).plot.area(subplots=False, ylabel='GW',
-                                                    color=plot_params_agg_pt.per_case_color)
+            ax = current_prod_var_opt.div(1e3).plot.area(subplots=False, ylabel='GW',
+                                                         color=plot_params_agg_pt.per_case_color,
+                                                         legend=False, figsize=(12, 6))
+            # Place legend outside plot area on the right
+            ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), title='Generator', frameon=True)
             plt.tight_layout()
             plt.savefig(get_output_figure(fig_name=FigNamesPrefix.production, country=country, year=year,
                                           climatic_year=climatic_year, start_horizon=start_horizon,
-                                          toy_model_output=toy_model_output))
+                                          toy_model_output=toy_model_output),
+                       bbox_inches='tight')
             plt.close()
 
     def plot_failure_at_opt(self, country: str, year: int, climatic_year: int, start_horizon: datetime,

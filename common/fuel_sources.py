@@ -11,10 +11,15 @@ from utils.read import check_and_load_json_file
 
 @dataclass
 class FuelNames:
+    battery: str = 'battery'
     biomass: str = 'biomass'
     coal: str = 'coal'
     gas: str = 'gas'
     hydro: str = 'hydro'
+    hydro_pump_closed: str = 'hydro_pump_storage_closed_loop'
+    hydro_pump_open: str = 'hydro_pump_storage_open_loop'
+    hydro_reservoir: str = 'hydro_reservoir'
+    hydro_ror: str = 'hydro_run_of_river'
     oil: str = 'oil'
     other_non_renewables: str = 'other_non_renew'
     other_renewables: str = 'other_renew'
@@ -75,5 +80,10 @@ def set_fuel_sources_from_json(add_other_fs: bool = True) -> Dict[str, FuelSourc
 # TODO: make code ok without dummy CO2 emission values
 dummy_co2_emissions = 0
 DUMMY_FUEL_SOURCES = {DummyFuelNames.ac: FuelSource(DummyFuelNames.ac.capitalize(), dummy_co2_emissions),
-                      DummyFuelNames.dc: FuelSource(DummyFuelNames.dc.capitalize(), dummy_co2_emissions)
+                      DummyFuelNames.dc: FuelSource(DummyFuelNames.dc.capitalize(), dummy_co2_emissions),
+                      FuelNames.battery: FuelSource('Battery', dummy_co2_emissions),
+                      FuelNames.hydro_pump_closed: FuelSource('Hydro Pump Closed', dummy_co2_emissions),
+                      FuelNames.hydro_pump_open: FuelSource('Hydro Pump Open', dummy_co2_emissions),
+                      FuelNames.hydro_reservoir: FuelSource('Hydro Reservoir', dummy_co2_emissions),
+                      FuelNames.hydro_ror: FuelSource('Hydro Run of River', dummy_co2_emissions)
                       }

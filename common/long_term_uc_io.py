@@ -122,6 +122,20 @@ OUTPUT_SUBFOLDER_DATA = 'data'
 OUTPUT_SUBFOLDER_FIG = 'figures'
 OUTPUT_DATA_ANALYSIS_FOLDER = f'{OUTPUT_FOLDER}/data_analysis'
 
+# Global variable for simulation-specific subfolder (set by runner scripts)
+_SIMULATION_RUN_ID = None
+
+
+def set_simulation_run_id(run_id: str):
+    """Set a simulation-specific run ID for organizing output files"""
+    global _SIMULATION_RUN_ID
+    _SIMULATION_RUN_ID = run_id
+
+
+def get_simulation_run_id() -> str:
+    """Get the current simulation run ID, or None if not set"""
+    return _SIMULATION_RUN_ID
+
 
 def check_uc_input_folder_content(all_countries: List[str]):
     uc_countries_folder = uniformize_path_os(path_str=os.path.join(INPUT_LT_UC_SUBFOLDER, 'countries'))
@@ -240,6 +254,12 @@ def get_output_figure(fig_name: str, country: str, year: int, climatic_year: int
 def set_full_lt_uc_output_folder(folder_type: str = None, country: str = None, toy_model_output: bool = False) -> str:
     subfolder = f'monozone_{set_country_trigram(country=country)}' if toy_model_output else 'multizones_eur'
     folders_tb_join = [OUTPUT_FOLDER_LT, subfolder]
+    
+    # If a simulation run ID is set, add it as a subfolder
+    run_id = get_simulation_run_id()
+    if run_id:
+        folders_tb_join.append(run_id)
+    
     if folder_type is not None:
         folders_tb_join.append(OUTPUT_SUBFOLDER_DATA if folder_type == OutputFolderNames.data else OUTPUT_SUBFOLDER_FIG)
     return '/'.join(folders_tb_join)

@@ -163,3 +163,5 @@ cython_debug/
 
 # PyPSA tests
 pypsa_tests/
+
+output/
