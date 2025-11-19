@@ -650,9 +650,12 @@ class Dataset:
                         # set column according to type of hydro asset
                         inflow_value_col = 'cum_inflow_into_reservoirs' if agg_pt == ProdTypeNames.hydro_reservoir \
                             else 'cum_nat_inflow_into_pump-storage_reservoirs'
-                        current_assets_data[agg_pt][GEN_UNITS_PYPSA_PARAMS.inflow] = (
-                            np.array(current_pt_inflow_data[inflow_value_col])
-                        )
+                        try:
+                            current_inflows_data = np.array(current_pt_inflow_data[inflow_value_col])
+                        except:
+                            logging.warning(f'Issue to access inflows data for {country} and {agg_pt} -> set to 0')
+                            current_inflows_data = 0  # Q: ok to set constant float and not a vector for this PyPSA attr.?
+                        current_assets_data[agg_pt][GEN_UNITS_PYPSA_PARAMS.inflow] = current_inflows_data
 
                 # specific parameters for failure
                 elif agg_pt == ProdTypeNames.failure:
