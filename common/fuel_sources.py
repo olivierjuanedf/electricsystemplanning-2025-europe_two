@@ -21,6 +21,8 @@ class FuelNames:
     solar: str = 'solar'
     uranium: str = 'uranium'
     wind: str = 'wind'
+    biofuel: str = 'biofuel'
+    lignite: str = 'lignite'
 
 
 @dataclass

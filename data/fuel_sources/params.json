@@ -46,5 +46,19 @@
     "committable": "True",
     "energy_density_per_ton": 5,
     "cost_per_ton": 30
-  }
+  },
+
+"biofuel": {
+  "co2_emissions": 230,
+  "committable": "True",
+  "energy_density_per_ton": 10,
+  "cost_per_ton": 900.78
+},
+
+"lignite": {
+  "co2_emissions": 398.7,
+  "committable": "True",
+  "energy_density_per_ton": 10,
+  "cost_per_ton": 354.78
+}
 }
