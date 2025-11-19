@@ -1,6 +1,7 @@
 from typing import Dict, List, Union
 
 import pandas as pd
+import numpy as np
 
 from common.constants.pypsa_params import GEN_UNITS_PYPSA_PARAMS
 from common.fuel_sources import FuelSource, FuelNames, DummyFuelNames
@@ -29,33 +30,34 @@ def get_generators(country_trigram: str, fuel_sources: Dict[str, FuelSource], wi
     min_power_pu/max_power_pu=0/1, marginal_cost=0
     -> see field 'generator_params_default_vals' in file input/long_term_uc/pypsa_static_params.json
     """
+    n_ts = len(wind_on_shore_cf_data['value'].values)
     generators = [
         {
             GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_hard-coal',
             GEN_UNITS_PYPSA_PARAMS.carrier: FuelNames.coal,
             GEN_UNITS_PYPSA_PARAMS.nominal_power: 2362,
-            GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.coal].primary_cost * 0.37,
+            GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.coal].primary_cost / 0.37,
             GEN_UNITS_PYPSA_PARAMS.efficiency: 0.37
         },
         {
             GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_gas',
             GEN_UNITS_PYPSA_PARAMS.carrier: FuelNames.gas,
             GEN_UNITS_PYPSA_PARAMS.nominal_power: 43672,
-            GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.gas].primary_cost * 0.5,
+            GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.gas].primary_cost / 0.5,
             GEN_UNITS_PYPSA_PARAMS.efficiency: 0.5
         },
         {
             GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_oil',
             GEN_UNITS_PYPSA_PARAMS.carrier: FuelNames.oil,
             GEN_UNITS_PYPSA_PARAMS.nominal_power: 866,
-            GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.oil].primary_cost * 0.4,
+            GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.oil].primary_cost / 0.4,
             GEN_UNITS_PYPSA_PARAMS.efficiency: 0.4
         },
         {
             GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_other-non-renewables',
             GEN_UNITS_PYPSA_PARAMS.carrier: FuelNames.other_non_renewables,
             GEN_UNITS_PYPSA_PARAMS.nominal_power: 8239,
-            GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.other_non_renewables].primary_cost * 0.4,
+            GEN_UNITS_PYPSA_PARAMS.marginal_cost: fuel_sources[FuelNames.other_non_renewables].primary_cost / 0.4,
             GEN_UNITS_PYPSA_PARAMS.efficiency: 0.4
         },
         {
@@ -90,7 +92,27 @@ def get_generators(country_trigram: str, fuel_sources: Dict[str, FuelSource], wi
             GEN_UNITS_PYPSA_PARAMS.carrier: DummyFuelNames.ac,
             GEN_UNITS_PYPSA_PARAMS.nominal_power: 1e10,
             GEN_UNITS_PYPSA_PARAMS.marginal_cost: 1e5
-        }
+        },
+        # this is a battery
+        {
+            GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_battery',
+            GEN_UNITS_PYPSA_PARAMS.carrier: 'Flexibility',
+            GEN_UNITS_PYPSA_PARAMS.nominal_power: 4000,
+            GEN_UNITS_PYPSA_PARAMS.min_power_pu: -1,
+            GEN_UNITS_PYPSA_PARAMS.max_power_pu: 1,
+            GEN_UNITS_PYPSA_PARAMS.max_hours: 2,
+            GEN_UNITS_PYPSA_PARAMS.soc_init: 1000,
+            GEN_UNITS_PYPSA_PARAMS.efficiency_store: 0.95,
+            GEN_UNITS_PYPSA_PARAMS.efficiency_dispatch: 0.95
+        },
+        {
+            GEN_UNITS_PYPSA_PARAMS.name: f'{country_trigram}_hydro-reservoir',
+            GEN_UNITS_PYPSA_PARAMS.carrier: 'Hydro',
+            GEN_UNITS_PYPSA_PARAMS.nominal_power: 10000,
+            GEN_UNITS_PYPSA_PARAMS.max_hours: 1000,
+            GEN_UNITS_PYPSA_PARAMS.soc_init: 1000000,
+            GEN_UNITS_PYPSA_PARAMS.inflow: np.ones(n_ts)
+        },
     ]
     return generators
 

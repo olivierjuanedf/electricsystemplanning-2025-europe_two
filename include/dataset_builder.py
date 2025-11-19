@@ -40,6 +40,9 @@ class GenerationUnitData:
     max_hours: float = None
     cyclic_state_of_charge: bool = None
     inflow: np.ndarray = None
+    state_of_charge_initial: float = None
+    efficiency_store: float = None
+    efficiency_dispatch: float = None
 
     def get_non_none_attr_names(self):
         return [key for key, val in self.__dict__.items() if val is not None]
@@ -202,10 +205,10 @@ class PypsaModel:
                 # case of storage units, identified via the presence of max_hours param
                 if pypsa_gen_unit_dict.get(GEN_UNITS_PYPSA_PARAMS.max_hours, None) is not None:
                     # initial SoC fixed to 80% statically here
-                    init_soc = (pypsa_gen_unit_dict[GEN_UNITS_PYPSA_PARAMS.power_capa]
-                                * pypsa_gen_unit_dict[GEN_UNITS_PYPSA_PARAMS.max_hours] * 0.8)
-                    self.network.add('StorageUnit', bus=f'{country_bus_name}', **pypsa_gen_unit_dict,
-                                     state_of_charge_initial=init_soc)
+                    logging.info(f'Default value set for {pypsa_gen_unit_dict[GEN_UNITS_PYPSA_PARAMS.name]} init. SOC as 80% of energy storage capa.')
+                    init_soc = (pypsa_gen_unit_dict[GEN_UNITS_PYPSA_PARAMS.power_capa] * pypsa_gen_unit_dict[GEN_UNITS_PYPSA_PARAMS.max_hours] * 0.8)
+                    pypsa_gen_unit_dict[GEN_UNITS_PYPSA_PARAMS.soc_init] = init_soc
+                    self.network.add('StorageUnit', bus=f'{country_bus_name}', **pypsa_gen_unit_dict)
                 else:
                     self.network.add('Generator', bus=f'{country_bus_name}', **pypsa_gen_unit_dict)
         generator_names = self.get_generator_names()
@@ -379,14 +382,16 @@ class PypsaModel:
 
     def plot_installed_capas(self, country: str, year: int, toy_model_output: bool = False):
         country_trigram = set_country_trigram(country=country)
-        # catch DeprecationWarnings TODO: fix/more robust way to catch them?
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            # N.B. p_nom_opt is the optimized capacity (that can be also a variable in PyPSA but here...
-            # not optimized - only UC problem -> values plotted correspond to the ones that can be found in input data)
-            # all but failure asset capacity will be used in plot
-            self.network.generators.p_nom_opt.drop(f'{country_trigram}_failure').div(1e3).plot.bar(ylabel='GW',
-                                                                                                   figsize=(8, 3))
+            # Get generator capacities (exclude failure)
+            gen = self.network.generators.p_nom_opt.drop(f'{country_trigram}_failure')
+            # Get storage unit capacities
+            store = self.network.storage_units.p_nom_opt if hasattr(self.network, "storage_units") else None
+            df = gen.to_frame("p_nom_opt")
+            if store is not None and not store.empty:
+                df = pd.concat([df, store.to_frame("p_nom_opt")])
+            df.div(1e3).plot.bar(ylabel='GW', figsize=(8, 3))
             plt.tight_layout()
             plt.savefig(get_output_figure(fig_name=FigNamesPrefix.capacity, country=country, year=year,
                                           toy_model_output=toy_model_output))
@@ -395,12 +400,10 @@ class PypsaModel:
     def plot_opt_prod_var(self, plot_params_agg_pt: PlotParams, country: str, year: int,
                           climatic_year: int, start_horizon: datetime, toy_model_output: bool = False):
         """ 
-        Plot 'stack' of optimized production profiles
+        Plot 'stack' of optimized production profiles, including storage dispatch
         """
-        # catch DeprecationWarnings TODO: fix/more robust way to catch them?
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            # sort values to get only prod of given country
             country_trigram = set_country_trigram(country=country)
             country_prod_cols = [prod_unit_name for prod_unit_name in list(self.prod_var_opt)
                                  if prod_unit_name.startswith(country_trigram)]
@@ -408,8 +411,24 @@ class PypsaModel:
             # suppress trigram from prod unit names to simplify legend in figures
             new_prod_cols = {col: col[4:] for col in country_prod_cols}
             current_prod_var_opt = rename_df_columns(df=current_prod_var_opt, old_to_new_cols=new_prod_cols)
-            current_prod_var_opt = set_col_order_for_plot(df=current_prod_var_opt,
-                                                          cols_ordered=plot_params_agg_pt.order)
+            # --- Add storage dispatch (discharge) to the production stack ---
+            try:
+                if hasattr(self, "storage_prod_var_opt") and self.storage_prod_var_opt is not None:
+                    # Only positive values (discharge)
+                    storage_discharge = self.storage_prod_var_opt.clip(lower=0)
+                    # Remove trigram prefix for legend consistency
+                    storage_cols = {col: col[4:] for col in storage_discharge.columns if col.startswith(country_trigram)}
+                    storage_discharge = storage_discharge.rename(columns=storage_cols)
+                    # Add to production DataFrame
+                    current_prod_var_opt = pd.concat([current_prod_var_opt, storage_discharge], axis=1)
+            except Exception:
+                pass
+            # Move storage columns to the end (top of stack)
+            storage_keys = [k for k in current_prod_var_opt.columns if any(s in k.lower() for s in ["battery", "batteries", "hydro_reservoir", "hydro-reservoir", "hydro_pondage", "hydro-pondage"])]
+            non_storage_keys = [k for k in plot_params_agg_pt.order if k in current_prod_var_opt.columns and k not in storage_keys]
+            # Place storage keys at the end of the order
+            new_order = non_storage_keys + [k for k in plot_params_agg_pt.order if k in storage_keys]
+            current_prod_var_opt = set_col_order_for_plot(df=current_prod_var_opt, cols_ordered=new_order)
             current_prod_var_opt.div(1e3).plot.area(subplots=False, ylabel='GW',
                                                     color=plot_params_agg_pt.per_case_color)
             plt.tight_layout()

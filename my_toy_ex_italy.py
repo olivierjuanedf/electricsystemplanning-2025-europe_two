@@ -75,8 +75,8 @@ climatic_year = 1989
 # N.B. Calendar of year 1900 used here, to make explicit the fact that ERAA data are 'projected'
 # on a fictive calendar - made of 52 full weeks
 from datetime import datetime, timedelta
-uc_period_start = datetime(year=1900, month=1, day=1)
-uc_period_end = uc_period_start + timedelta(days=14)
+uc_period_start = datetime(year=1900, month=9, day=25)
+uc_period_end = uc_period_start + timedelta(days=2)
 # TODO: used?
 from common.constants.prod_types import ProdTypeNames
 agg_prod_types_selec = [ProdTypeNames.wind_onshore, ProdTypeNames.wind_offshore, ProdTypeNames.solar_pv]
