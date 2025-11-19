@@ -19,6 +19,10 @@ class GenUnitsPypsaParams:
     nominal_power: str = 'p_nom'
     power_capa: str = 'p_nom'
     set_power: str = 'p_set'
+    soc_init: float = 'state_of_charge_initial'
+    # if store/discharge efficiency to be distinguished, e.g. for stocks
+    efficiency_store: str = 'efficiency_store'
+    efficiency_dispatch: str = 'efficiency_dispatch'
 
 
 GEN_UNITS_PYPSA_PARAMS = GenUnitsPypsaParams()
