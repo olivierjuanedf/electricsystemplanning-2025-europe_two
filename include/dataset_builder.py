@@ -431,6 +431,30 @@ class PypsaModel:
                                           toy_model_output=toy_model_output))
             plt.close()
 
+    def plot_link_flows_at_opt(self, origin_country: str, year: int, climatic_year: int, 
+                               start_horizon: datetime, toy_model_output: bool = False):
+        logging.info('Preliminary code for optimal flow plotting to ba adapted/tested to get output figures')
+        # select links with origin_country as p0
+        direct_flows = self.link_flow_var_opt_direct
+        reverse_flows = self.link_flow_var_opt_reverse
+        links_for_plot = []
+        # cf. Copilot piece of code :) -> to be tested/adapted
+        # flow_df = direct_flows.copy()
+        # flow_df.columns = [f"{col} (p0)" for col in flow_df.columns]
+        # for col in reverse_flows.columns:
+        #     flow_df[f"{col} (p1)"] = reverse_flows[col]
+        #     flow_df.reset_index(inplace=True)
+        # # plot -> to be activated after having checked code above
+        # # catch DeprecationWarnings TODO: fix/more robust way to catch them?
+        # with warnings.catch_warnings():
+        #     warnings.simplefilter("ignore")
+        #     self.link_flow_var_opt_direct.div(1e3)[links_for_plot].plot.line(subplots=False, ylabel='GW')
+        #     plt.tight_layout()
+        #     plt.savefig(get_figure_file_named('link_flows', country=origin_country, year=year, climatic_year=climatic_year,
+        #                                       start_horizon=start_horizon, toy_model_output=toy_model_output)
+        #                 )
+        #     plt.close()
+
     def plot_failure_at_opt(self, country: str, year: int, climatic_year: int, start_horizon: datetime,
                             toy_model_output: bool = False):
         # catch DeprecationWarnings TODO: fix/more robust way to catch them?

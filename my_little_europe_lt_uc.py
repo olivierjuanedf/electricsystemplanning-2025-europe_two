@@ -144,6 +144,10 @@ def save_data_and_fig_results(pypsa_model: PypsaModel, uc_run_params: UCRunParam
                                           year=uc_run_params.selected_target_year,
                                           climatic_year=uc_run_params.selected_climatic_year,
                                           start_horizon=uc_run_params.uc_period_start)
+            pypsa_model.plot_link_flows_at_opt(origin_country=country, 
+                                               year=uc_run_params.selected_target_year,
+                                               climatic_year=uc_run_params.selected_climatic_year,
+                                               start_horizon=uc_run_params.uc_period_start)
         # plot 'marginal price' figure
         pypsa_model.plot_marginal_price(plot_params_zone=plot_params_zone, year=uc_run_params.selected_target_year,
                                         climatic_year=uc_run_params.selected_climatic_year,
