@@ -108,7 +108,8 @@ def rename_df_columns(df: pd.DataFrame, old_to_new_cols: dict) -> pd.DataFrame:
     return df
 
 
-def replace_none_values_in_df(df: pd.DataFrame, per_col_repl_values: dict, key_cols: list = None) -> pd.DataFrame:
+def replace_none_values_in_df(df: pd.DataFrame, per_col_repl_values: dict, key_cols: list = None, 
+                              deactivate_verbose_warn: bool = True) -> pd.DataFrame:
     if key_cols is None:
         key_cols = list(set(df.columns) - set(per_col_repl_values))
     cols_with_none_vals = {}
@@ -121,8 +122,9 @@ def replace_none_values_in_df(df: pd.DataFrame, per_col_repl_values: dict, key_c
     if len(cols_with_none_vals) > 0:
         repl_values_applied = {col: default_val for col, default_val in per_col_repl_values.items()
                                if col in cols_with_none_vals}
-        logging.warning(f'There were none values in df associated to keys: {cols_with_none_vals}'
-                        f'\n-> replaced by {repl_values_applied}')
+        if not deactivate_verbose_warn:
+            logging.warning(f'There were none values in df associated to keys: {cols_with_none_vals}'
+                            f'\n-> replaced by {repl_values_applied}')
     return df
 
 
