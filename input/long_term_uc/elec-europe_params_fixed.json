@@ -200,6 +200,7 @@
       "carrier": "oil",
       "p_min_pu": 0,
       "p_max_pu": 1,
+      "marginal_cost": 30,
       "committable": "true"
     },
     "others_fatal": {
